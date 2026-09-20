@@ -11,10 +11,9 @@ src-tauri/WixTools/
 
 # ── Node / Bun ────────────────────────────────────────────────
 node_modules/
-package-lock.json
 yarn.lock
-# bun.lockb is kept — uncomment to ignore:
-# bun.lockb
+bun.lock
+bun.lockb
 
 # ── Vite build output ─────────────────────────────────────────
 dist/
