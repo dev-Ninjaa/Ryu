@@ -1,0 +1,4 @@
+[build]
+jobs = 16
+
+# Reduce it to 1-4 if You have a low end pc if not then default is 16
