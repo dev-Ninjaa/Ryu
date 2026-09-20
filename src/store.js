@@ -95,9 +95,49 @@ export async function deleteEnvVar(key) {
   await loadEnvVars();
 }
 
-import defaultCollectionsData from '../test/api/test-collections.json';
-
-const defaultCollections = defaultCollectionsData.collections || [];
+const defaultCollections = [
+  {
+    name: 'Ryu Tests',
+    requests: [],
+    folders: [
+      {
+        name: 'Basic API Tests',
+        requests: [
+          { name: 'Get Users', method: 'GET', url: 'http://localhost:3000/api/users', headers: [], params: [], body: '', auth: { type: 'none' } },
+          { name: 'Create User', method: 'POST', url: 'http://localhost:3000/api/users', headers: [{ enabled: true, key: 'Content-Type', value: 'application/json' }], params: [], body: '{"name": "John Doe"}', auth: { type: 'none' } },
+          { name: 'Echo Request', method: 'POST', url: 'http://localhost:3000/api/echo', headers: [{ enabled: true, key: 'Content-Type', value: 'application/json' }, { enabled: true, key: 'X-Custom-Header', value: 'test-value' }], params: [{ enabled: true, key: 'param1', value: 'value1' }], body: '{"message": "Hello World"}', auth: { type: 'none' } },
+          { name: 'Error Test', method: 'GET', url: 'http://localhost:3000/api/error', headers: [], params: [], body: '', auth: { type: 'none' } },
+        ],
+      },
+      {
+        name: 'API Hardening Tests',
+        requests: [
+          { name: 'Query Parameters Test', method: 'GET', url: 'http://localhost:3000/api/params', headers: [], params: [{ enabled: true, key: 'q', value: 'test' }, { enabled: true, key: 'page', value: '1' }, { enabled: true, key: 'limit', value: '10' }], body: '', auth: { type: 'none' } },
+          { name: 'Headers Test', method: 'GET', url: 'http://localhost:3000/api/headers', headers: [{ enabled: true, key: 'X-Test', value: 'custom-header-value' }, { enabled: true, key: 'X-API-Version', value: '1.0' }], params: [], body: '', auth: { type: 'none' } },
+          { name: 'JSON Body Test', method: 'POST', url: 'http://localhost:3000/api/body', headers: [{ enabled: true, key: 'Content-Type', value: 'application/json' }], params: [], body: '{"key": "value", "number": 42, "array": [1, 2, 3]}', auth: { type: 'none' } },
+          { name: 'Text Body Test', method: 'POST', url: 'http://localhost:3000/api/body', headers: [{ enabled: true, key: 'Content-Type', value: 'text/plain' }], params: [], body: 'This is plain text content', auth: { type: 'none' } },
+          { name: 'URL Parameters Test', method: 'GET', url: 'http://localhost:3000/api/env/my-test-value', headers: [], params: [], body: '', auth: { type: 'none' } },
+        ],
+      },
+      {
+        name: 'Authentication Tests',
+        requests: [
+          { name: 'Bearer Token Auth', method: 'GET', url: 'http://localhost:3000/api/auth/bearer', headers: [{ enabled: true, key: 'Authorization', value: 'Bearer my-token' }], params: [], body: '', auth: { type: 'bearer', token: 'my-token' } },
+          { name: 'Basic Auth', method: 'GET', url: 'http://localhost:3000/api/auth/basic', headers: [], params: [], body: '', auth: { type: 'basic', username: 'admin', password: 'password' } },
+          { name: 'API Key in Header', method: 'GET', url: 'http://localhost:3000/api/auth/apikey', headers: [{ enabled: true, key: 'X-API-Key', value: 'key123' }], params: [], body: '', auth: { type: 'none' } },
+          { name: 'API Key in Query', method: 'GET', url: 'http://localhost:3000/api/auth/apikey', headers: [], params: [{ enabled: true, key: 'api_key', value: 'key123' }], body: '', auth: { type: 'none' } },
+        ],
+      },
+      {
+        name: 'Advanced Tests',
+        requests: [
+          { name: 'Mixed Request Test', method: 'POST', url: 'http://localhost:3000/api/mixed', headers: [{ enabled: true, key: 'Content-Type', value: 'application/json' }, { enabled: true, key: 'Authorization', value: 'Bearer test-token' }, { enabled: true, key: 'X-Custom', value: 'header-value' }], params: [{ enabled: true, key: 'query_param', value: 'query_value' }], body: '{"data": "test", "id": 123}', auth: { type: 'bearer', token: 'test-token' } },
+          { name: 'Invalid JSON Body', method: 'POST', url: 'http://localhost:3000/api/body', headers: [{ enabled: true, key: 'Content-Type', value: 'application/json' }], params: [], body: '{"invalid": json}', auth: { type: 'none' } },
+        ],
+      },
+    ],
+  },
+];
 
 // ─── Collections (localStorage) ───────────────────────────────────────────────
 export function loadCollections() {
