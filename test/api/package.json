@@ -1,0 +1,13 @@
+{
+  "name": "ryu-test-api",
+  "version": "1.0.0",
+  "description": "Deterministic test API for Ryu",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "start:with-instructions": "node start-with-instructions.js"
+  },
+  "dependencies": {
+    "express": "^5.2.1"
+  }
+}
