@@ -1,6 +1,6 @@
+use super::models::HistoryEntry;
 use rusqlite::{Connection, Result as SqlResult};
 use std::sync::Mutex;
-use super::models::HistoryEntry;
 
 pub struct Database {
     conn: Mutex<Connection>,
@@ -9,7 +9,7 @@ pub struct Database {
 impl Database {
     pub fn new(db_path: &str) -> SqlResult<Self> {
         let conn = Connection::open(db_path)?;
-        
+
         // Create history table if not exists
         conn.execute(
             "CREATE TABLE IF NOT EXISTS history (
@@ -67,13 +67,13 @@ impl Database {
             "SELECT id, method, url, status, time_ms, timestamp, request_json, response_json 
              FROM history 
              ORDER BY timestamp DESC 
-             LIMIT 50"
+             LIMIT 50",
         )?;
 
         let entries = stmt.query_map([], |row| {
             let request_json: String = row.get(6).unwrap_or_default();
             let response_json: String = row.get(7).unwrap_or_default();
-            
+
             let request = serde_json::from_str(&request_json).unwrap_or_else(|_| {
                 // Fallback for old entries without request_json
                 crate::models::ApiRequest {

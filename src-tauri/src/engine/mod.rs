@@ -1,3 +1,3 @@
 pub mod auth;
-pub mod http;
 pub mod curl;
+pub mod http;

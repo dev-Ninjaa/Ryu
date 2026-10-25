@@ -1,9 +1,9 @@
-use std::sync::{Arc, Mutex};
-use std::collections::HashMap;
-use tokio::net::{TcpListener, TcpStream};
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use serde_json::{json, Value};
 use base64::Engine;
+use serde_json::{json, Value};
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::net::{TcpListener, TcpStream};
 
 #[derive(Clone)]
 struct User {
@@ -20,9 +20,21 @@ impl ServerState {
     fn new() -> Self {
         Self {
             users: vec![
-                User { id: 1, name: "Ninja".to_string(), email: "ninja@example.com".to_string() },
-                User { id: 2, name: "Rex".to_string(), email: "rex@example.com".to_string() },
-                User { id: 3, name: "Ace".to_string(), email: "ace@example.com".to_string() },
+                User {
+                    id: 1,
+                    name: "Ninja".to_string(),
+                    email: "ninja@example.com".to_string(),
+                },
+                User {
+                    id: 2,
+                    name: "Rex".to_string(),
+                    email: "rex@example.com".to_string(),
+                },
+                User {
+                    id: 3,
+                    name: "Ace".to_string(),
+                    email: "ace@example.com".to_string(),
+                },
             ],
         }
     }
@@ -34,7 +46,10 @@ pub fn start_test_server() {
         let listener = match TcpListener::bind(addr).await {
             Ok(l) => l,
             Err(e) => {
-                eprintln!("[Test API] Could not bind to {}: {}. External test API or port in use.", addr, e);
+                eprintln!(
+                    "[Test API] Could not bind to {}: {}. External test API or port in use.",
+                    addr, e
+                );
                 return;
             }
         };
@@ -59,7 +74,10 @@ pub fn start_test_server() {
     });
 }
 
-async fn handle_connection(mut stream: TcpStream, state: Arc<Mutex<ServerState>>) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+async fn handle_connection(
+    mut stream: TcpStream,
+    state: Arc<Mutex<ServerState>>,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let mut buffer = Vec::new();
     let mut temp = [0u8; 4096];
 
@@ -138,7 +156,8 @@ async fn handle_connection(mut stream: TcpStream, state: Arc<Mutex<ServerState>>
 
     let (path, query_map) = parse_url(full_path);
 
-    let (status, status_text, body_json) = route_request(&method, &path, &query_map, &headers, &raw_body, state);
+    let (status, status_text, body_json) =
+        route_request(&method, &path, &query_map, &headers, &raw_body, state);
 
     let response_body = body_json.to_string();
     let response = format!(
@@ -168,13 +187,17 @@ fn route_request(
         // GET /api/users
         ("GET", "/api/users") => {
             let st = state.lock().unwrap();
-            let users_json: Vec<Value> = st.users.iter().map(|u| {
-                json!({
-                    "id": u.id,
-                    "name": u.name,
-                    "email": u.email
+            let users_json: Vec<Value> = st
+                .users
+                .iter()
+                .map(|u| {
+                    json!({
+                        "id": u.id,
+                        "name": u.name,
+                        "email": u.email
+                    })
                 })
-            }).collect();
+                .collect();
             (200, "OK", json!(users_json))
         }
 
@@ -182,7 +205,10 @@ fn route_request(
         ("POST", "/api/users") => {
             let parsed_body: Result<Value, _> = serde_json::from_str(raw_body);
             let name = match parsed_body {
-                Ok(v) => v.get("name").and_then(|n| n.as_str()).map(|s| s.to_string()),
+                Ok(v) => v
+                    .get("name")
+                    .and_then(|n| n.as_str())
+                    .map(|s| s.to_string()),
                 Err(_) => None,
             };
 
@@ -197,40 +223,54 @@ fn route_request(
                     email: email.clone(),
                 };
                 st.users.push(new_user);
-                (201, "Created", json!({
-                    "id": new_id,
-                    "name": name_str,
-                    "email": email
-                }))
+                (
+                    201,
+                    "Created",
+                    json!({
+                        "id": new_id,
+                        "name": name_str,
+                        "email": email
+                    }),
+                )
             } else {
-                (400, "Bad Request", json!({
-                    "error": "Bad Request",
-                    "message": "Missing 'name' in request body"
-                }))
+                (
+                    400,
+                    "Bad Request",
+                    json!({
+                        "error": "Bad Request",
+                        "message": "Missing 'name' in request body"
+                    }),
+                )
             }
         }
 
         // GET /api/error
-        ("GET", "/api/error") => {
-            (500, "Internal Server Error", json!({
+        ("GET", "/api/error") => (
+            500,
+            "Internal Server Error",
+            json!({
                 "error": "Internal Server Error",
                 "message": "This is a deterministic error for testing."
-            }))
-        }
+            }),
+        ),
 
         // GET /api/params
-        ("GET", "/api/params") => {
-            (200, "OK", json!({
+        ("GET", "/api/params") => (
+            200,
+            "OK",
+            json!({
                 "query": query
-            }))
-        }
+            }),
+        ),
 
         // GET /api/headers
-        ("GET", "/api/headers") => {
-            (200, "OK", json!({
+        ("GET", "/api/headers") => (
+            200,
+            "OK",
+            json!({
                 "headers": headers
-            }))
-        }
+            }),
+        ),
 
         // POST /api/body
         ("POST", "/api/body") => {
@@ -240,17 +280,25 @@ fn route_request(
             let parsed: Result<Value, _> = serde_json::from_str(raw_body);
 
             if is_json && parsed.is_err() {
-                return (400, "Bad Request", json!({
-                    "error": "Invalid JSON",
-                    "message": "The provided body is not valid JSON"
-                }));
+                return (
+                    400,
+                    "Bad Request",
+                    json!({
+                        "error": "Invalid JSON",
+                        "message": "The provided body is not valid JSON"
+                    }),
+                );
             }
 
             let body_val = parsed.unwrap_or_else(|_| json!(raw_body));
-            (200, "OK", json!({
-                "body": body_val,
-                "contentType": content_type
-            }))
+            (
+                200,
+                "OK",
+                json!({
+                    "body": body_val,
+                    "contentType": content_type
+                }),
+            )
         }
 
         // GET /api/auth/bearer
@@ -259,16 +307,24 @@ fn route_request(
             if let Some(auth_val) = auth {
                 if auth_val.starts_with("Bearer ") {
                     let token = auth_val["Bearer ".len()..].trim();
-                    return (200, "OK", json!({
-                        "message": "Authenticated with Bearer token",
-                        "token": token
-                    }));
+                    return (
+                        200,
+                        "OK",
+                        json!({
+                            "message": "Authenticated with Bearer token",
+                            "token": token
+                        }),
+                    );
                 }
             }
-            (401, "Unauthorized", json!({
-                "error": "Unauthorized",
-                "message": "Missing or invalid Bearer token"
-            }))
+            (
+                401,
+                "Unauthorized",
+                json!({
+                    "error": "Unauthorized",
+                    "message": "Missing or invalid Bearer token"
+                }),
+            )
         }
 
         // GET /api/auth/basic
@@ -277,22 +333,32 @@ fn route_request(
             if let Some(auth_val) = auth {
                 if auth_val.starts_with("Basic ") {
                     let encoded = auth_val["Basic ".len()..].trim();
-                    if let Ok(decoded_bytes) = base64::engine::general_purpose::STANDARD.decode(encoded) {
+                    if let Ok(decoded_bytes) =
+                        base64::engine::general_purpose::STANDARD.decode(encoded)
+                    {
                         if let Ok(decoded_str) = String::from_utf8(decoded_bytes) {
                             let mut parts = decoded_str.splitn(2, ':');
                             let username = parts.next().unwrap_or("");
-                            return (200, "OK", json!({
-                                "message": "Authenticated with Basic auth",
-                                "username": username
-                            }));
+                            return (
+                                200,
+                                "OK",
+                                json!({
+                                    "message": "Authenticated with Basic auth",
+                                    "username": username
+                                }),
+                            );
                         }
                     }
                 }
             }
-            (401, "Unauthorized", json!({
-                "error": "Unauthorized",
-                "message": "Missing or invalid Basic auth"
-            }))
+            (
+                401,
+                "Unauthorized",
+                json!({
+                    "error": "Unauthorized",
+                    "message": "Missing or invalid Basic auth"
+                }),
+            )
         }
 
         // GET /api/auth/apikey
@@ -301,10 +367,14 @@ fn route_request(
             let key_query = query.get("api_key");
 
             if key_header.is_none() && key_query.is_none() {
-                return (403, "Forbidden", json!({
-                    "error": "Forbidden",
-                    "message": "Missing API key in header (x-api-key) or query (api_key)"
-                }));
+                return (
+                    403,
+                    "Forbidden",
+                    json!({
+                        "error": "Forbidden",
+                        "message": "Missing API key in header (x-api-key) or query (api_key)"
+                    }),
+                );
             }
 
             let (key, loc) = if let Some(k) = key_header {
@@ -313,11 +383,15 @@ fn route_request(
                 (key_query.cloned().unwrap_or_default(), "query")
             };
 
-            (200, "OK", json!({
-                "message": "Authenticated with API key",
-                "key": key,
-                "location": loc
-            }))
+            (
+                200,
+                "OK",
+                json!({
+                    "message": "Authenticated with API key",
+                    "key": key,
+                    "location": loc
+                }),
+            )
         }
 
         // POST /api/mixed
@@ -326,44 +400,61 @@ fn route_request(
                 || headers.contains_key("x-api-key")
                 || query.contains_key("api_key");
 
-            let parsed_body: Value = serde_json::from_str(raw_body).unwrap_or_else(|_| json!(raw_body));
+            let parsed_body: Value =
+                serde_json::from_str(raw_body).unwrap_or_else(|_| json!(raw_body));
 
-            (200, "OK", json!({
-                "method": method,
-                "headers": headers,
-                "query": query,
-                "body": parsed_body,
-                "auth": if has_auth { "Present" } else { "Missing" }
-            }))
+            (
+                200,
+                "OK",
+                json!({
+                    "method": method,
+                    "headers": headers,
+                    "query": query,
+                    "body": parsed_body,
+                    "auth": if has_auth { "Present" } else { "Missing" }
+                }),
+            )
         }
 
         // Catch-all for /api/echo
         (_, p) if p == "/api/echo" => {
-            let parsed_body: Value = serde_json::from_str(raw_body).unwrap_or_else(|_| json!(raw_body));
-            (200, "OK", json!({
-                "method": method,
-                "headers": headers,
-                "query": query,
-                "body": parsed_body,
-                "timestamp": chrono::Utc::now().to_rfc3339()
-            }))
+            let parsed_body: Value =
+                serde_json::from_str(raw_body).unwrap_or_else(|_| json!(raw_body));
+            (
+                200,
+                "OK",
+                json!({
+                    "method": method,
+                    "headers": headers,
+                    "query": query,
+                    "body": parsed_body,
+                    "timestamp": chrono::Utc::now().to_rfc3339()
+                }),
+            )
         }
 
         // Handle /api/env/:value
         ("GET", p) if p.starts_with("/api/env/") => {
             let val = &p["/api/env/".len()..];
-            let decoded_val = urlencoding::decode(val).unwrap_or_else(|_| std::borrow::Cow::Borrowed(val));
-            (200, "OK", json!({
-                "value": decoded_val
-            }))
+            let decoded_val =
+                urlencoding::decode(val).unwrap_or_else(|_| std::borrow::Cow::Borrowed(val));
+            (
+                200,
+                "OK",
+                json!({
+                    "value": decoded_val
+                }),
+            )
         }
 
-        _ => {
-            (404, "Not Found", json!({
+        _ => (
+            404,
+            "Not Found",
+            json!({
                 "error": "Not Found",
                 "message": format!("Route {} {} not found", method, path)
-            }))
-        }
+            }),
+        ),
     }
 }
 
@@ -380,8 +471,12 @@ fn parse_url(full_path: &str) -> (String, HashMap<String, String>) {
             let mut kv = pair.splitn(2, '=');
             let key = kv.next().unwrap_or("");
             let val = kv.next().unwrap_or("");
-            let dec_key = urlencoding::decode(key).unwrap_or_else(|_| std::borrow::Cow::Borrowed(key)).to_string();
-            let dec_val = urlencoding::decode(val).unwrap_or_else(|_| std::borrow::Cow::Borrowed(val)).to_string();
+            let dec_key = urlencoding::decode(key)
+                .unwrap_or_else(|_| std::borrow::Cow::Borrowed(key))
+                .to_string();
+            let dec_val = urlencoding::decode(val)
+                .unwrap_or_else(|_| std::borrow::Cow::Borrowed(val))
+                .to_string();
             query.insert(dec_key, dec_val);
         }
     }
@@ -390,7 +485,9 @@ fn parse_url(full_path: &str) -> (String, HashMap<String, String>) {
 }
 
 fn find_subslice(haystack: &[u8], needle: &[u8]) -> Option<usize> {
-    haystack.windows(needle.len()).position(|window| window == needle)
+    haystack
+        .windows(needle.len())
+        .position(|window| window == needle)
 }
 
 #[cfg(test)]
@@ -400,7 +497,14 @@ mod tests {
     #[test]
     fn test_get_users_route() {
         let state = Arc::new(Mutex::new(ServerState::new()));
-        let (status, _, body) = route_request("GET", "/api/users", &HashMap::new(), &HashMap::new(), "", state);
+        let (status, _, body) = route_request(
+            "GET",
+            "/api/users",
+            &HashMap::new(),
+            &HashMap::new(),
+            "",
+            state,
+        );
         assert_eq!(status, 200);
         assert!(body.as_array().unwrap().len() >= 3);
     }
@@ -408,7 +512,14 @@ mod tests {
     #[test]
     fn test_error_route() {
         let state = Arc::new(Mutex::new(ServerState::new()));
-        let (status, _, body) = route_request("GET", "/api/error", &HashMap::new(), &HashMap::new(), "", state);
+        let (status, _, body) = route_request(
+            "GET",
+            "/api/error",
+            &HashMap::new(),
+            &HashMap::new(),
+            "",
+            state,
+        );
         assert_eq!(status, 500);
         assert_eq!(body["error"], "Internal Server Error");
     }
@@ -417,8 +528,18 @@ mod tests {
     fn test_bearer_auth_route() {
         let state = Arc::new(Mutex::new(ServerState::new()));
         let mut headers = HashMap::new();
-        headers.insert("authorization".to_string(), "Bearer secret-token-123".to_string());
-        let (status, _, body) = route_request("GET", "/api/auth/bearer", &HashMap::new(), &headers, "", state);
+        headers.insert(
+            "authorization".to_string(),
+            "Bearer secret-token-123".to_string(),
+        );
+        let (status, _, body) = route_request(
+            "GET",
+            "/api/auth/bearer",
+            &HashMap::new(),
+            &headers,
+            "",
+            state,
+        );
         assert_eq!(status, 200);
         assert_eq!(body["token"], "secret-token-123");
     }

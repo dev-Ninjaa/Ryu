@@ -1,5 +1,5 @@
-use serde::{Deserialize, Serialize};
 use crate::models::ApiRequest;
+use serde::{Deserialize, Serialize};
 
 /// Represents a saved request file
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -25,7 +25,11 @@ fn extract_endpoint(url: &str) -> String {
             // Take last 2 segments or full path if shorter
             let segments: Vec<&str> = path.split('/').filter(|s| !s.is_empty()).collect();
             if segments.len() >= 2 {
-                format!(".../{}/{}", segments[segments.len() - 2], segments[segments.len() - 1])
+                format!(
+                    ".../{}/{}",
+                    segments[segments.len() - 2],
+                    segments[segments.len() - 1]
+                )
             } else {
                 path.to_string()
             }
@@ -43,8 +47,14 @@ mod tests {
 
     #[test]
     fn test_extract_endpoint() {
-        assert_eq!(extract_endpoint("https://api.example.com/users/123"), ".../users/123");
+        assert_eq!(
+            extract_endpoint("https://api.example.com/users/123"),
+            ".../users/123"
+        );
         assert_eq!(extract_endpoint("https://api.example.com/users"), "/users");
-        assert_eq!(extract_endpoint("https://api.example.com"), "api.example.com");
+        assert_eq!(
+            extract_endpoint("https://api.example.com"),
+            "api.example.com"
+        );
     }
 }

@@ -1,5 +1,5 @@
-use serde::{Deserialize, Serialize};
 use crate::models::{ApiRequest, ApiResponse};
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HistoryEntry {
@@ -18,7 +18,7 @@ impl HistoryEntry {
     pub fn new(request: ApiRequest, response: ApiResponse) -> Self {
         let timestamp = chrono::Utc::now().timestamp_millis();
         let id = format!("{}-{}", timestamp, uuid_simple());
-        
+
         Self {
             id,
             method: request.method.clone(),

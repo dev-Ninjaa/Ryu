@@ -1,6 +1,6 @@
+use super::models::EnvVar;
 use rusqlite::{Connection, Result as SqlResult};
 use std::sync::Mutex;
-use super::models::EnvVar;
 
 pub struct EnvStore {
     conn: Mutex<Connection>,
@@ -9,7 +9,7 @@ pub struct EnvStore {
 impl EnvStore {
     pub fn new(db_path: &str) -> SqlResult<Self> {
         let conn = Connection::open(db_path)?;
-        
+
         // Create env_vars table if not exists (includes enabled flag)
         conn.execute(
             "CREATE TABLE IF NOT EXISTS env_vars (
@@ -33,7 +33,10 @@ impl EnvStore {
                 }
             }
             if !has_enabled {
-                conn.execute("ALTER TABLE env_vars ADD COLUMN enabled INTEGER DEFAULT 1", [])?;
+                conn.execute(
+                    "ALTER TABLE env_vars ADD COLUMN enabled INTEGER DEFAULT 1",
+                    [],
+                )?;
             }
         }
 
@@ -44,7 +47,8 @@ impl EnvStore {
 
     pub fn get_all(&self) -> SqlResult<Vec<EnvVar>> {
         let conn = self.conn.lock().unwrap();
-        let mut stmt = conn.prepare("SELECT key, value, COALESCE(enabled,1) FROM env_vars ORDER BY key")?;
+        let mut stmt =
+            conn.prepare("SELECT key, value, COALESCE(enabled,1) FROM env_vars ORDER BY key")?;
 
         let vars = stmt.query_map([], |row| {
             Ok(EnvVar {

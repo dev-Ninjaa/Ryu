@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 
-fn default_enabled() -> bool { true }
+fn default_enabled() -> bool {
+    true
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EnvVar {
@@ -8,4 +10,4 @@ pub struct EnvVar {
     pub value: String,
     #[serde(default = "default_enabled")]
     pub enabled: bool,
-} 
+}

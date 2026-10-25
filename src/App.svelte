@@ -1,19 +1,21 @@
 <script>
   import { onMount } from 'svelte';
-  import { loadHistory, loadEnvVars, loadCollections } from './store.js';
+  import { loadHistory, loadEnvVars, loadCollections, loadAgent37Config } from './store.js';
   import Sidebar from './components/Sidebar.svelte';
   import RequestBar from './components/RequestBar.svelte';
   import RequestEditor from './components/RequestEditor.svelte';
   import ResponseViewer from './components/ResponseViewer.svelte';
+  import Agent37Panel from './components/Agent37Panel.svelte';
   import { response } from './store.js';
 
   let sidebarCollapsed = false;
   let sidebarWidth = 280;
   let isResizing = false;
   let darkTheme = true;
+  let settingsOpen = false;
 
   onMount(async () => {
-    await Promise.all([loadHistory(), loadEnvVars()]);
+    await Promise.all([loadHistory(), loadEnvVars(), loadAgent37Config()]);
     loadCollections();
 
     // Verify Test API server status on startup
@@ -37,6 +39,10 @@
     if ((e.ctrlKey || e.metaKey) && e.key === 'b') {
       e.preventDefault();
       sidebarCollapsed = !sidebarCollapsed;
+    }
+    if ((e.ctrlKey || e.metaKey) && e.key === ',') {
+      e.preventDefault();
+      settingsOpen = !settingsOpen;
     }
   }
 
@@ -97,13 +103,50 @@
   {/if}
 
   <main class="main-content">
-    <RequestBar on:toggleSidebar={() => (sidebarCollapsed = !sidebarCollapsed)} on:toggleTheme={toggleTheme} {darkTheme} />
+    <RequestBar
+      on:toggleSidebar={() => (sidebarCollapsed = !sidebarCollapsed)}
+      on:toggleTheme={toggleTheme}
+      on:openSettings={() => (settingsOpen = !settingsOpen)}
+      {darkTheme}
+    />
     <RequestEditor />
     {#if $response}
       <ResponseViewer />
     {/if}
   </main>
 </div>
+
+<!-- ── Settings drawer ──────────────────────────────────────────────────────── -->
+{#if settingsOpen}
+  <!-- Backdrop -->
+  <div
+    class="settings-backdrop"
+    role="presentation"
+    on:click={() => (settingsOpen = false)}
+  ></div>
+
+  <!-- Drawer -->
+  <aside class="settings-drawer" aria-label="Settings">
+    <div class="settings-drawer-header">
+      <h2>Settings</h2>
+      <button
+        class="btn-icon"
+        title="Close settings (Ctrl+,)"
+        aria-label="Close settings"
+        on:click={() => (settingsOpen = false)}
+      >
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+      </button>
+    </div>
+
+    <div class="settings-section-label">Agent37 Runner</div>
+    <div class="settings-drawer-body">
+      <Agent37Panel />
+    </div>
+  </aside>
+{/if}
 
 <style>
   :global(*) {
@@ -172,5 +215,69 @@
     display: flex;
     flex-direction: column;
     overflow: hidden;
+  }
+
+  /* ── Settings drawer ──────────────────────────────────────────────────────── */
+  .settings-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    z-index: 200;
+    animation: fadeBackdrop 0.18s ease-out;
+  }
+  @keyframes fadeBackdrop {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+
+  .settings-drawer {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 400px;
+    max-width: 92vw;
+    background: var(--bg-panel);
+    border-left: 1px solid var(--border-color);
+    box-shadow: -4px 0 24px rgba(0, 0, 0, 0.4);
+    z-index: 201;
+    display: flex;
+    flex-direction: column;
+    animation: slideDrawer 0.2s ease-out;
+  }
+  @keyframes slideDrawer {
+    from { transform: translateX(100%); }
+    to   { transform: translateX(0); }
+  }
+
+  .settings-drawer-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--spacing-lg) var(--spacing-xl);
+    border-bottom: 1px solid var(--border-subtle);
+    flex-shrink: 0;
+  }
+  .settings-drawer-header h2 {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0;
+  }
+
+  .settings-section-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    padding: var(--spacing-lg) var(--spacing-xl) var(--spacing-sm);
+    flex-shrink: 0;
+  }
+
+  .settings-drawer-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0 var(--spacing-xl) var(--spacing-xl);
   }
 </style>

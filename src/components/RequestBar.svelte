@@ -194,6 +194,14 @@
         <path d="M11 7H9V5H7v2H5l3 3 3-3z" fill="currentColor"/>
       </svg>
     </button>
+
+    <!-- Settings (Agent37) -->
+    <button class="btn-icon" title="Settings" on:click={() => dispatch('openSettings')}>
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+        <path d="M8 10a2 2 0 1 0 0-4 2 2 0 0 0 0 4z" stroke="currentColor" stroke-width="1.5"/>
+        <path d="M13.3 9.3l.9-.5.8-1.8-.8-1.8-.9-.5-1 .1-.7-.7.1-1-.5-.9L9.5 2l-1 .4-.5.9.1 1-.7.7-1-.1-.9.5L4.7 7l.5.9.9.5 1-.1.7.7-.1 1 .5.9 1.8.8 1.8-.8.5-.9-.1-1 .7-.7 1 .1z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </button>
   </div>
 </section>
 

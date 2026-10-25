@@ -1,48 +1,45 @@
 // Prevents additional console window on Windows in release
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-mod models;
+mod agent37;
 mod engine;
-mod store;
 mod env;
-mod workspace;
+mod models;
+mod store;
 mod test_server;
+mod workspace;
 
-use models::{ApiRequest, ApiResponse};
-use store::{Store, models::HistoryEntry};
-use env::{EnvStore, EnvVar, resolve_variables};
-use workspace::{save_request_to_file, load_request_from_file};
-use std::sync::Arc;
-use std::collections::HashMap;
+use agent37::Agent37State;
 use chrono;
-use tauri::{State, Manager, AppHandle};
+use env::{resolve_variables, EnvStore, EnvVar};
+use models::{ApiRequest, ApiResponse};
+use std::collections::HashMap;
+use std::sync::Arc;
+use store::{models::HistoryEntry, Store};
+use tauri::{AppHandle, Manager, State};
+use workspace::{load_request_from_file, save_request_to_file};
 
-struct AppState {
+pub struct AppState {
     store: Arc<Store>,
     env_store: Arc<EnvStore>,
+    agent37: Agent37State,
 }
 
 #[tauri::command]
-async fn send_request(
-    req: ApiRequest,
-    state: State<'_, AppState>,
-) -> Result<ApiResponse, String> {
+async fn send_request(req: ApiRequest, state: State<'_, AppState>) -> Result<ApiResponse, String> {
     // Resolve environment variables
     let resolved_req = resolve_request_variables(req.clone(), &state.env_store)?;
-    
+
     let response = engine::http::execute_request(resolved_req.clone()).await?;
-    
+
     // Save to history (use original request for full restoration)
-    let entry = HistoryEntry::new(
-        req,
-        response.clone(),
-    );
-    
+    let entry = HistoryEntry::new(req, response.clone());
+
     // Don't fail the request if history save fails
     if let Err(e) = state.store.add_history_entry(entry) {
         eprintln!("Warning: Failed to save history: {}", e);
     }
-    
+
     Ok(response)
 }
 
@@ -65,30 +62,43 @@ fn export_curl(req: ApiRequest, state: State<'_, AppState>) -> Result<String, St
 
 #[tauri::command]
 fn get_env_vars(state: State<'_, AppState>) -> Result<Vec<EnvVar>, String> {
-    state.env_store.get_all()
+    state
+        .env_store
+        .get_all()
         .map_err(|e| format!("Failed to get env vars: {}", e))
 }
 
 #[tauri::command]
-fn set_env_var(key: String, value: String, enabled: Option<bool>, state: State<'_, AppState>) -> Result<(), String> {
+fn set_env_var(
+    key: String,
+    value: String,
+    enabled: Option<bool>,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
     let en = enabled.unwrap_or(true);
-    state.env_store.set(&key, &value, en)
+    state
+        .env_store
+        .set(&key, &value, en)
         .map_err(|e| format!("Failed to set env var: {}", e))
 }
 
 #[tauri::command]
 async fn export_env_vars(app: AppHandle, state: State<'_, AppState>) -> Result<(), String> {
-    use tauri_plugin_dialog::{DialogExt, FilePath};
     use std::fs;
+    use tauri_plugin_dialog::{DialogExt, FilePath};
 
-    let vars = state.env_store.get_all().map_err(|e| format!("Failed to fetch env vars: {}", e))?;
+    let vars = state
+        .env_store
+        .get_all()
+        .map_err(|e| format!("Failed to fetch env vars: {}", e))?;
     let export = serde_json::json!({
         "version": "1.0",
         "exportedAt": chrono::Utc::now().to_rfc3339(),
         "env": vars,
     });
 
-    let file_path = app.dialog()
+    let file_path = app
+        .dialog()
         .file()
         .set_title("Export Environment Variables")
         .add_filter("JSON Files", &["json"])
@@ -97,10 +107,17 @@ async fn export_env_vars(app: AppHandle, state: State<'_, AppState>) -> Result<(
 
     if let Some(path) = file_path {
         let path_str = match path {
-            FilePath::Path(p) => p.to_str().ok_or_else(|| "Invalid file path".to_string())?.to_string(),
+            FilePath::Path(p) => p
+                .to_str()
+                .ok_or_else(|| "Invalid file path".to_string())?
+                .to_string(),
             FilePath::Url(_u) => return Err("URL paths not supported".to_string()),
         };
-        fs::write(path_str, serde_json::to_string_pretty(&export).map_err(|e| e.to_string())?).map_err(|e| format!("Failed to write file: {}", e))?;
+        fs::write(
+            path_str,
+            serde_json::to_string_pretty(&export).map_err(|e| e.to_string())?,
+        )
+        .map_err(|e| format!("Failed to write file: {}", e))?;
     }
 
     Ok(())
@@ -108,123 +125,140 @@ async fn export_env_vars(app: AppHandle, state: State<'_, AppState>) -> Result<(
 
 #[tauri::command]
 fn delete_env_var(key: String, state: State<'_, AppState>) -> Result<(), String> {
-    state.env_store.delete(&key)
+    state
+        .env_store
+        .delete(&key)
         .map_err(|e| format!("Failed to delete env var: {}", e))
 }
 
 #[tauri::command]
 async fn save_request(app: AppHandle, req: ApiRequest) -> Result<(), String> {
     use tauri_plugin_dialog::{DialogExt, FilePath};
-    
+
     // Open save dialog (blocking)
-    let file_path = app.dialog()
+    let file_path = app
+        .dialog()
         .file()
         .set_title("Save Request")
         .add_filter("JSON Files", &["json"])
         .set_file_name("request.json")
         .blocking_save_file();
-    
+
     if let Some(path) = file_path {
         let path_str = match path {
-            FilePath::Path(p) => p.to_str()
-                .ok_or_else(|| "Invalid file path".to_string())?.to_string(),
+            FilePath::Path(p) => p
+                .to_str()
+                .ok_or_else(|| "Invalid file path".to_string())?
+                .to_string(),
             FilePath::Url(_u) => return Err("URL paths not supported".to_string()),
         };
-        
+
         save_request_to_file(req, &path_str)?;
     }
-    
+
     Ok(())
 }
 
 #[tauri::command]
 async fn load_request(app: AppHandle) -> Result<ApiRequest, String> {
     use tauri_plugin_dialog::{DialogExt, FilePath};
-    
+
     // Open file dialog (blocking)
-    let file_path = app.dialog()
+    let file_path = app
+        .dialog()
         .file()
         .set_title("Load Request")
         .add_filter("JSON Files", &["json"])
         .blocking_pick_file();
-    
+
     if let Some(path) = file_path {
         let path_str = match path {
-            FilePath::Path(p) => p.to_str()
-                .ok_or_else(|| "Invalid file path".to_string())?.to_string(),
+            FilePath::Path(p) => p
+                .to_str()
+                .ok_or_else(|| "Invalid file path".to_string())?
+                .to_string(),
             FilePath::Url(_u) => return Err("URL paths not supported".to_string()),
         };
-        
+
         let request = load_request_from_file(&path_str)?;
         return Ok(request);
     }
-    
+
     Err("No file selected".to_string())
 }
 
 #[tauri::command]
 async fn save_collections(app: AppHandle, collections: serde_json::Value) -> Result<(), String> {
-    use tauri_plugin_dialog::{DialogExt, FilePath};
     use std::fs;
-    
+    use tauri_plugin_dialog::{DialogExt, FilePath};
+
     // Open save dialog (blocking)
-    let file_path = app.dialog()
+    let file_path = app
+        .dialog()
         .file()
         .set_title("Export Collections")
         .add_filter("JSON Files", &["json"])
-        .set_file_name(&format!("collections-{}.json", chrono::Utc::now().format("%Y-%m-%d")))
+        .set_file_name(&format!(
+            "collections-{}.json",
+            chrono::Utc::now().format("%Y-%m-%d")
+        ))
         .blocking_save_file();
-    
+
     if let Some(path) = file_path {
         let path_str = match path {
-            FilePath::Path(p) => p.to_str()
-                .ok_or_else(|| "Invalid file path".to_string())?.to_string(),
+            FilePath::Path(p) => p
+                .to_str()
+                .ok_or_else(|| "Invalid file path".to_string())?
+                .to_string(),
             FilePath::Url(_u) => return Err("URL paths not supported".to_string()),
         };
-        
+
         // Serialize to pretty JSON
         let json = serde_json::to_string_pretty(&collections)
             .map_err(|e| format!("Failed to serialize collections: {}", e))?;
-        
+
         // Write to file
-        fs::write(&path_str, json)
-            .map_err(|e| format!("Failed to write file: {}", e))?;
+        fs::write(&path_str, json).map_err(|e| format!("Failed to write file: {}", e))?;
     }
-    
+
     Ok(())
 }
 
 /// Resolves environment variables in an ApiRequest
-fn resolve_request_variables(mut req: ApiRequest, env_store: &EnvStore) -> Result<ApiRequest, String> {
+fn resolve_request_variables(
+    mut req: ApiRequest,
+    env_store: &EnvStore,
+) -> Result<ApiRequest, String> {
     // Load all env vars into a HashMap
-    let env_vars = env_store.get_all()
+    let env_vars = env_store
+        .get_all()
         .map_err(|e| format!("Failed to load env vars: {}", e))?;
-    
+
     let env_map: HashMap<String, String> = env_vars
         .into_iter()
         .map(|var| (var.key, var.value))
         .collect();
-    
+
     // Resolve URL
     req.url = resolve_variables(&req.url, &env_map);
-    
+
     // Resolve params
     for param in &mut req.params {
         param.key = resolve_variables(&param.key, &env_map);
         param.value = resolve_variables(&param.value, &env_map);
     }
-    
+
     // Resolve headers
     for header in &mut req.headers {
         header.key = resolve_variables(&header.key, &env_map);
         header.value = resolve_variables(&header.value, &env_map);
     }
-    
+
     // Resolve body
     if let Some(body) = &req.body {
         req.body = Some(resolve_variables(body, &env_map));
     }
-    
+
     // Resolve auth fields
     if let Some(token) = &req.auth.token {
         req.auth.token = Some(resolve_variables(token, &env_map));
@@ -241,7 +275,7 @@ fn resolve_request_variables(mut req: ApiRequest, env_store: &EnvStore) -> Resul
     if let Some(password) = &req.auth.password {
         req.auth.password = Some(resolve_variables(password, &env_map));
     }
-    
+
     Ok(req)
 }
 
@@ -250,36 +284,51 @@ fn main() {
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             // Initialize database
-            let app_data_dir = app.path().app_data_dir()
+            let app_data_dir = app
+                .path()
+                .app_data_dir()
                 .map_err(|e| format!("Failed to get app data directory: {}", e))?;
-            
+
             std::fs::create_dir_all(&app_data_dir)
                 .map_err(|e| format!("Failed to create app data directory: {}", e))?;
-            
+
             let history_db_path = app_data_dir.join("history.db");
-            let history_db_str = history_db_path.to_str()
+            let history_db_str = history_db_path
+                .to_str()
                 .ok_or_else(|| "Invalid history database path".to_string())?;
-            
+
             let store = Store::new(history_db_str)
                 .map_err(|e| format!("Failed to initialize history store: {}", e))?;
-            
+
             let env_db_path = app_data_dir.join("env.db");
-            let env_db_str = env_db_path.to_str()
+            let env_db_str = env_db_path
+                .to_str()
                 .ok_or_else(|| "Invalid env database path".to_string())?;
-            
+
             let env_store = EnvStore::new(env_db_str)
                 .map_err(|e| format!("Failed to initialize env store: {}", e))?;
-            
+
+            let agent37_db_path = app_data_dir.join("agent37.db");
+            let agent37_db_str = agent37_db_path
+                .to_str()
+                .ok_or_else(|| "Invalid agent37 database path".to_string())?;
+
+            let agent37_store = agent37::Agent37Store::new(agent37_db_str)
+                .map_err(|e| format!("Failed to initialize Agent37 store: {}", e))?;
+
             let app_state = AppState {
                 store: Arc::new(store),
                 env_store: Arc::new(env_store),
+                agent37: Agent37State {
+                    store: Arc::new(agent37_store),
+                },
             };
-            
+
             app.manage(app_state);
 
             // Start embedded local Test API server at http://localhost:3000
             test_server::start_test_server();
-            
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -293,7 +342,13 @@ fn main() {
             save_request,
             load_request,
             save_collections,
-            export_env_vars
+            export_env_vars,
+            agent37::agent37_get_config,
+            agent37::agent37_set_runner_url,
+            agent37::agent37_set_token,
+            agent37::agent37_delete_token,
+            agent37::agent37_token_status,
+            agent37::agent37_test_connection
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

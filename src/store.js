@@ -189,3 +189,64 @@ export function validateJson(text) {
   if (!text?.trim()) return true;
   try { JSON.parse(text); return true; } catch { return false; }
 }
+
+// ─── Agent37 ──────────────────────────────────────────────────────────────────
+
+/** Non-secret config (runner base URL). Populated on app load. */
+export const agent37Config = writable({ runnerUrl: '' });
+
+/** Whether a bearer token is currently stored in the OS keychain. */
+export const agent37TokenStored = writable(false);
+
+/** Load config and token-status from Rust — call once on mount. */
+export async function loadAgent37Config() {
+  const invoke = getInvoke();
+  if (!invoke) return;
+  try {
+    const [cfg, tokenStatus] = await Promise.all([
+      invoke('agent37_get_config'),
+      invoke('agent37_token_status'),
+    ]);
+    agent37Config.set(cfg);
+    agent37TokenStored.set(tokenStatus.stored);
+  } catch (e) {
+    console.error('[Agent37] Failed to load config:', e);
+  }
+}
+
+/** Persist the runner base URL and refresh local state. */
+export async function agent37SetRunnerUrl(url) {
+  const invoke = getInvoke();
+  if (!invoke) throw new Error('Tauri not available');
+  await invoke('agent37_set_runner_url', { url });
+  await loadAgent37Config();
+}
+
+/**
+ * Store the bearer token in the OS credential vault.
+ * The value is sent to Rust exactly once and is never stored client-side.
+ */
+export async function agent37SetToken(token) {
+  const invoke = getInvoke();
+  if (!invoke) throw new Error('Tauri not available');
+  await invoke('agent37_set_token', { token });
+  await loadAgent37Config();
+}
+
+/** Remove the bearer token from the OS credential vault. */
+export async function agent37DeleteToken() {
+  const invoke = getInvoke();
+  if (!invoke) throw new Error('Tauri not available');
+  await invoke('agent37_delete_token');
+  await loadAgent37Config();
+}
+
+/**
+ * Run an authenticated health check against the configured runner URL.
+ * Returns the raw `ConnectionResult` object from Rust.
+ */
+export async function agent37TestConnection() {
+  const invoke = getInvoke();
+  if (!invoke) throw new Error('Tauri not available');
+  return invoke('agent37_test_connection');
+}

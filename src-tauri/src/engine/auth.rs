@@ -1,7 +1,7 @@
 use crate::models::AuthPayload;
+use base64::Engine;
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 use std::str::FromStr;
-use base64::Engine;
 
 pub fn apply_auth(
     auth: &AuthPayload,
@@ -14,7 +14,7 @@ pub fn apply_auth(
                 if !token.trim().is_empty() {
                     let value = HeaderValue::from_str(&format!("Bearer {}", token))
                         .map_err(|e| format!("Invalid bearer token: {}", e))?;
-                    
+
                     // Don't override if user already set Authorization
                     if !headers.contains_key("authorization") {
                         headers.insert("authorization", value);
@@ -26,14 +26,13 @@ pub fn apply_auth(
             if let (Some(key), Some(value)) = (&auth.api_key, &auth.api_value) {
                 if !key.trim().is_empty() {
                     let location = auth.api_location.as_deref().unwrap_or("header");
-                    
+
                     if location == "query" {
                         url.query_pairs_mut().append_pair(key, value);
                     } else {
-                        if let (Ok(header_name), Ok(header_value)) = (
-                            HeaderName::from_str(key),
-                            HeaderValue::from_str(value),
-                        ) {
+                        if let (Ok(header_name), Ok(header_value)) =
+                            (HeaderName::from_str(key), HeaderValue::from_str(value))
+                        {
                             if !headers.contains_key(&header_name) {
                                 headers.insert(header_name, header_value);
                             }
@@ -49,7 +48,7 @@ pub fn apply_auth(
                         .encode(format!("{}:{}", username, password));
                     let value = HeaderValue::from_str(&format!("Basic {}", credentials))
                         .map_err(|e| format!("Invalid basic auth: {}", e))?;
-                    
+
                     if !headers.contains_key("authorization") {
                         headers.insert("authorization", value);
                     }

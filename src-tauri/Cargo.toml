@@ -25,6 +25,7 @@ base64 = "0.22"
 rusqlite = { version = "0.32", features = ["bundled"] }
 chrono = "0.4"
 urlencoding = "2.1"
+keyring = { version = "3", features = ["windows-native"] }
 
 [features]
 default = ["custom-protocol"]

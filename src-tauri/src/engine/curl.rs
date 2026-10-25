@@ -14,7 +14,11 @@ pub fn to_curl(req: &ApiRequest) -> String {
     parts.push(format!("'{}'", escape_single_quotes(&full_url)));
 
     // Add headers
-    for header in req.headers.iter().filter(|h| h.enabled && !h.key.trim().is_empty()) {
+    for header in req
+        .headers
+        .iter()
+        .filter(|h| h.enabled && !h.key.trim().is_empty())
+    {
         parts.push(format!(
             "-H '{}: {}'",
             escape_single_quotes(&header.key),
@@ -34,7 +38,7 @@ pub fn to_curl(req: &ApiRequest) -> String {
                 if !has_content_type_header(req) && is_json_body(body) {
                     parts.push("-H 'Content-Type: application/json'".to_string());
                 }
-                
+
                 parts.push(format!("-d '{}'", escape_single_quotes(body)));
             }
         }
@@ -46,35 +50,36 @@ pub fn to_curl(req: &ApiRequest) -> String {
 
 fn build_url_with_params(req: &ApiRequest) -> String {
     let mut url = req.url.clone();
-    
-    let mut enabled_params: Vec<(String, String)> = req.params.iter()
+
+    let mut enabled_params: Vec<(String, String)> = req
+        .params
+        .iter()
         .filter(|p| p.enabled && !p.key.trim().is_empty())
         .map(|p| (p.key.clone(), p.value.clone()))
         .collect();
-    
+
     // Add API key if it's in query
     if req.auth.auth_type == "apikey" {
         if let (Some(key), Some(value)) = (&req.auth.api_key, &req.auth.api_value) {
-            if !key.trim().is_empty() && req.auth.api_location.as_deref().unwrap_or("header") == "query" {
+            if !key.trim().is_empty()
+                && req.auth.api_location.as_deref().unwrap_or("header") == "query"
+            {
                 enabled_params.push((key.clone(), value.clone()));
             }
         }
     }
-    
+
     if !enabled_params.is_empty() {
         let separator = if url.contains('?') { '&' } else { '?' };
         let params_str = enabled_params
             .iter()
-            .map(|(k, v)| format!("{}={}", 
-                urlencoding::encode(k), 
-                urlencoding::encode(v)
-            ))
+            .map(|(k, v)| format!("{}={}", urlencoding::encode(k), urlencoding::encode(v)))
             .collect::<Vec<_>>()
             .join("&");
-        
+
         url = format!("{}{}{}", url, separator, params_str);
     }
-    
+
     url
 }
 
@@ -92,7 +97,9 @@ fn add_auth_to_curl(parts: &mut Vec<String>, req: &ApiRequest) {
         }
         "apikey" => {
             if let (Some(key), Some(value)) = (&req.auth.api_key, &req.auth.api_value) {
-                if !key.is_empty() && req.auth.api_location.as_deref().unwrap_or("header") == "header" {
+                if !key.is_empty()
+                    && req.auth.api_location.as_deref().unwrap_or("header") == "header"
+                {
                     if !has_header(req, key) {
                         parts.push(format!(
                             "-H '{}: {}'",
@@ -119,21 +126,23 @@ fn add_auth_to_curl(parts: &mut Vec<String>, req: &ApiRequest) {
 }
 
 fn has_header(req: &ApiRequest, key: &str) -> bool {
-    req.headers.iter()
+    req.headers
+        .iter()
         .filter(|h| h.enabled)
         .any(|h| h.key.to_lowercase() == key.to_lowercase())
 }
 
 fn has_content_type_header(req: &ApiRequest) -> bool {
-    req.headers.iter()
+    req.headers
+        .iter()
         .filter(|h| h.enabled)
         .any(|h| h.key.to_lowercase() == "content-type")
 }
 
 fn is_json_body(body: &str) -> bool {
     let trimmed = body.trim();
-    (trimmed.starts_with('{') && trimmed.ends_with('}')) ||
-    (trimmed.starts_with('[') && trimmed.ends_with(']'))
+    (trimmed.starts_with('{') && trimmed.ends_with('}'))
+        || (trimmed.starts_with('[') && trimmed.ends_with(']'))
 }
 
 fn escape_single_quotes(s: &str) -> String {
@@ -223,13 +232,11 @@ mod tests {
         let req = ApiRequest {
             method: "GET".to_string(),
             url: "https://api.example.com/search".to_string(),
-            params: vec![
-                KeyValue {
-                    enabled: true,
-                    key: "q".to_string(),
-                    value: "test query".to_string(),
-                },
-            ],
+            params: vec![KeyValue {
+                enabled: true,
+                key: "q".to_string(),
+                value: "test query".to_string(),
+            }],
             headers: vec![],
             body: None,
             auth: AuthPayload::default(),

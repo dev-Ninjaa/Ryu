@@ -1,5 +1,5 @@
-use crate::models::{ApiRequest, ApiResponse};
 use crate::engine::auth;
+use crate::models::{ApiRequest, ApiResponse};
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 use std::collections::HashMap;
 use std::str::FromStr;
@@ -9,18 +9,24 @@ pub async fn execute_request(req: ApiRequest) -> Result<ApiResponse, String> {
     let start = Instant::now();
 
     // Parse and build URL with query params
-    let mut url = url::Url::parse(&req.url)
-        .map_err(|e| format!("Invalid URL: {}", e))?;
+    let mut url = url::Url::parse(&req.url).map_err(|e| format!("Invalid URL: {}", e))?;
 
     // Add query parameters
-    for param in req.params.iter().filter(|p| p.enabled && !p.key.trim().is_empty()) {
-        url.query_pairs_mut()
-            .append_pair(&param.key, &param.value);
+    for param in req
+        .params
+        .iter()
+        .filter(|p| p.enabled && !p.key.trim().is_empty())
+    {
+        url.query_pairs_mut().append_pair(&param.key, &param.value);
     }
 
     // Build headers
     let mut headers = HeaderMap::new();
-    for header in req.headers.iter().filter(|h| h.enabled && !h.key.trim().is_empty()) {
+    for header in req
+        .headers
+        .iter()
+        .filter(|h| h.enabled && !h.key.trim().is_empty())
+    {
         if let (Ok(name), Ok(value)) = (
             HeaderName::from_str(&header.key),
             HeaderValue::from_str(&header.value),
@@ -35,9 +41,15 @@ pub async fn execute_request(req: ApiRequest) -> Result<ApiResponse, String> {
 
     // Build HTTP client
     let mut default_headers = HeaderMap::new();
-    default_headers.insert("Accept", HeaderValue::from_static("application/json, text/plain, */*"));
-    default_headers.insert("Accept-Language", HeaderValue::from_static("en-US,en;q=0.9"));
-    
+    default_headers.insert(
+        "Accept",
+        HeaderValue::from_static("application/json, text/plain, */*"),
+    );
+    default_headers.insert(
+        "Accept-Language",
+        HeaderValue::from_static("en-US,en;q=0.9"),
+    );
+
     let client = reqwest::Client::builder()
         .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
         .default_headers(default_headers)
@@ -49,7 +61,8 @@ pub async fn execute_request(req: ApiRequest) -> Result<ApiResponse, String> {
     let method = reqwest::Method::from_str(&req.method.to_uppercase())
         .map_err(|e| format!("Invalid HTTP method: {}", e))?;
 
-    let mut request_builder = client.request(method.clone(), url.as_str())
+    let mut request_builder = client
+        .request(method.clone(), url.as_str())
         .headers(headers);
 
     // Add body if present and method allows it
@@ -69,7 +82,9 @@ pub async fn execute_request(req: ApiRequest) -> Result<ApiResponse, String> {
 
     // Extract response data
     let status = response.status().as_u16();
-    let status_text = response.status().canonical_reason()
+    let status_text = response
+        .status()
+        .canonical_reason()
         .unwrap_or("Unknown")
         .to_string();
 
@@ -77,16 +92,13 @@ pub async fn execute_request(req: ApiRequest) -> Result<ApiResponse, String> {
     let response_headers: HashMap<String, String> = response
         .headers()
         .iter()
-        .map(|(k, v)| {
-            (
-                k.to_string(),
-                v.to_str().unwrap_or("").to_string(),
-            )
-        })
+        .map(|(k, v)| (k.to_string(), v.to_str().unwrap_or("").to_string()))
         .collect();
 
     // Get response body
-    let body_bytes = response.bytes().await
+    let body_bytes = response
+        .bytes()
+        .await
         .map_err(|e| format!("Failed to read response body: {}", e))?;
 
     let size_kb = body_bytes.len() as f64 / 1024.0;
